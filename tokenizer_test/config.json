@@ -1,0 +1,1 @@
+{"model_type": "bert", "vocab_size": 420, "special_tokens": ["[PAD]", "[BOS]", "[EOS]", "[MASK]", "[UNK]"]}
