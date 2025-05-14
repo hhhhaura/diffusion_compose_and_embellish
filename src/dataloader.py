@@ -8,6 +8,7 @@ import shutil
 import typing
 import urllib
 import zipfile
+import ipdb
 
 import datasets
 import fsspec
@@ -118,7 +119,8 @@ def get_cond_dataset(config, tokenizer, wrap, mode, cache_dir, num_proc=len(os.s
 
   if not _path is None and utils.fsspec_exists(_path):
     LOGGER.info(f'Loading data from: {_path}')
-    return datasets.load_from_disk(_path).with_format('torch')
+    ds = datasets.load_from_disk(_path).with_format('torch')
+    return ds
 
   if not _path is None: 
     LOGGER.info(f'Generating new data at: {_path}')

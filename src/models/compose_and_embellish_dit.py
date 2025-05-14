@@ -1,6 +1,6 @@
 import math
 import typing
-
+import ipdb
 import flash_attn
 import flash_attn.layers.rotary
 import huggingface_hub
@@ -356,19 +356,16 @@ class DIT(nn.Module, huggingface_hub.PyTorchModelHubMixin):
     else:
       return  bias_dropout_add_scale_fused_inference
 
-  import torch
-import torch.nn.functional as F
-
-def forward(self, indices, sigma, cond=None):
+  def forward(self, indices, sigma, cond=None):
     l = indices.shape[1] + cond.shape[1]  # Length of sequence
     n = indices.shape[0]  # Batch size
-    mx = cond.shape[1] # Length of cond
-
+    mx = cond.shape[1]  # Length of cond
 
     # Constants for the ids and sequence length
     skyline_id = 334
     midi_id = 333
     x_length = 160
+    bos_id = 4
 
     # Initialize lists for x and y (tensor will be filled later)
     x = torch.zeros(n, l).long().to(indices.device)  # Initialize x with zeros (same shape as indices)
@@ -377,26 +374,31 @@ def forward(self, indices, sigma, cond=None):
     # Iterate over each example in the batch (loop over n)
     for i in range(n):
         # 1. Find the first segment of cond until the token before the second skyline_id
-        id = cond[i].find(skyline_id, 3, mx)  # Find first skyline_id
-        x[i] = cond[i, 0:id].clone() + indices[i, 0:x_length]  # Append first part
-
-        # 2. Create y for this part (1 for indices, 0 for cond tokens)
-        y[i] = torch.cat([torch.zeros(id).long(), torch.ones(x_length).long()]).to(indices.device)
+        # Replace `find` with `torch.where`
+        ii = 0
+        skylines = torch.where(cond[i] == skyline_id)[0]
+        id = skylines[1]  # Find where the skyline_id is located
+        x[i, ii:ii+id+x_length] = torch.cat([cond[i, 0:id], indices[i, 0:x_length]], dim=0)  # Append first part
+        y[i, ii:ii+id+x_length] = torch.cat([torch.zeros(id).long(), torch.ones(x_length).long()], dim=0).to(indices.device)
+        ii += id + x_length  # Update ii to the next position
 
         prev = id
         # 3. Find and append tokens in between skyline_id to the next skyline_id
-        id = cond[i].find(skyline_id, id + 1, l)
         cnt = 1
-        while id != -1:
-            x[i] = torch.cat([x[i], cond[i, prev:id].clone() + indices[i, cnt * x_length:(cnt + 1) * x_length]])  # Append segments
-            y[i] = torch.cat([y[i], torch.zeros(id - prev).long(), torch.ones(x_length).long()]).to(indices.device)
-            prev = id
-            cnt += 1
-            id = cond[i].find(skyline_id, id + 1, l)
+        for idx in range(2, skylines.shape[0]):
+          id = skylines[idx]
+      
+          x[i, ii: ii + id - prev + x_length] = torch.cat([cond[i, prev:id].clone(), indices[i, cnt * x_length:(cnt + 1) * x_length]], dim=0)  # Append segments
+          y[i, ii: ii + id - prev + x_length] = torch.cat([torch.zeros(id - prev).long(), torch.ones(x_length).long()], dim=0).to(indices.device)
+          ii+= id - prev + x_length  # Update ii to the next position
+
+          prev = id
+          cnt += 1
         # 4. Append the last segment after the last skyline_id
-        x[i] = torch.cat([x[i], cond[i, prev:].clone() + indices[i, cnt * x_length:]])
-        y[i] = torch.cat([y[i], torch.zeros(cond.shape[1] - prev).long()]).to(indices.device)
-        y[i] = torch.cat([y[i], torch.ones(indices.shape[1] - y[i].shape[0]).long()]).to(indices.device)  # Pad y with ones
+        id = torch.where(cond[i] == bos_id)[0][0]
+        x[i, ii: ii + id + 1 - prev + x_length] = torch.cat([cond[i, prev:id+1].clone(), indices[i, cnt * x_length:]], dim=0)
+        y[i, ii: ii + id + 1 - prev + x_length] = torch.cat([torch.zeros(id+1 - prev).long(), torch.ones(x_length).long()], dim=0).to(indices.device)
+        ipdb.set_trace()
 
     # Embedding lookup (assuming self.vocab_embed is a valid embedding layer)
     x = self.vocab_embed(x)
@@ -411,9 +413,9 @@ def forward(self, indices, sigma, cond=None):
     with torch.cuda.amp.autocast(dtype=torch.bfloat16):  # Automatic Mixed Precision
         for i in range(len(self.blocks)):
             x = self.blocks[i](x, rotary_cos_sin, c, seqlens=None)
-    
+
     # Final output layer transformation
     x = self.output_layer(x, c)
 
     # Return final output
-    return x[:, y == 1] # Return only the parts where y == 1
+    return x[:, y == 1]  # Return only the parts where y == 1

@@ -6,7 +6,7 @@ valid_tgt: /tmp2/b11902010/dmir_lab/diffusion_compose_and_embellish/dataset/pop2
 cond_length: 1024
 tgt_length: 2048
 tokenizer_name_or_path: /tmp2/b11902010/dmir_lab/diffusion_compose_and_embellish/tokenizers/cne_tokenizer
-cache_dir: /tmp2/b11902010/.cache/no
+cache_dir: /tmp2/b11902010/.cache/pop2piano
 wrap: True
 streaming: True
 testing: False

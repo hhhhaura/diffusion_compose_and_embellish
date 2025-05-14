@@ -78,8 +78,7 @@ class Diffusion(L.LightningModule):
 
     self.tokenizer = tokenizer
     self.vocab_size = self.tokenizer.vocab_size 
-    self.valid_dataset = dataloader.get_cond_dataset(self.config.data.valid, 
-        self.tokenizer, True, 'valid', self.config.data.cache_dir, self.model.length, self.model.melody_length) # TODO: yunchenc
+    self.valid_dataset = dataloader.get_cond_dataset(self.config, self.tokenizer, True, 'valid', self.config.data.cache_dir) # TODO: yunchenc
     self.sampler = self.config.sampling.predictor
     self.gen_ppl_eval_model_name_or_path = self.config.eval.\
       gen_ppl_eval_model_name_or_path
