@@ -356,20 +356,64 @@ class DIT(nn.Module, huggingface_hub.PyTorchModelHubMixin):
     else:
       return  bias_dropout_add_scale_fused_inference
 
-  def forward(self, indices, sigma, cond=None):
-    l = indices.shape[1]
+  import torch
+import torch.nn.functional as F
 
-    # TODO: yunchenc do bar by bar conditioning
-    y = self.vocab_embed(cond) 
-    x = torch.cat((x, y), dim=1) 
+def forward(self, indices, sigma, cond=None):
+    l = indices.shape[1] + cond.shape[1]  # Length of sequence
+    n = indices.shape[0]  # Batch size
+    mx = cond.shape[1] # Length of cond
 
+
+    # Constants for the ids and sequence length
+    skyline_id = 334
+    midi_id = 333
+    x_length = 160
+
+    # Initialize lists for x and y (tensor will be filled later)
+    x = torch.zeros(n, l).long().to(indices.device)  # Initialize x with zeros (same shape as indices)
+    y = torch.zeros(n, l).long().to(indices.device)  # Initialize y with zeros
+
+    # Iterate over each example in the batch (loop over n)
+    for i in range(n):
+        # 1. Find the first segment of cond until the token before the second skyline_id
+        id = cond[i].find(skyline_id, 3, mx)  # Find first skyline_id
+        x[i] = cond[i, 0:id].clone() + indices[i, 0:x_length]  # Append first part
+
+        # 2. Create y for this part (1 for indices, 0 for cond tokens)
+        y[i] = torch.cat([torch.zeros(id).long(), torch.ones(x_length).long()]).to(indices.device)
+
+        prev = id
+        # 3. Find and append tokens in between skyline_id to the next skyline_id
+        id = cond[i].find(skyline_id, id + 1, l)
+        cnt = 1
+        while id != -1:
+            x[i] = torch.cat([x[i], cond[i, prev:id].clone() + indices[i, cnt * x_length:(cnt + 1) * x_length]])  # Append segments
+            y[i] = torch.cat([y[i], torch.zeros(id - prev).long(), torch.ones(x_length).long()]).to(indices.device)
+            prev = id
+            cnt += 1
+            id = cond[i].find(skyline_id, id + 1, l)
+        # 4. Append the last segment after the last skyline_id
+        x[i] = torch.cat([x[i], cond[i, prev:].clone() + indices[i, cnt * x_length:]])
+        y[i] = torch.cat([y[i], torch.zeros(cond.shape[1] - prev).long()]).to(indices.device)
+        y[i] = torch.cat([y[i], torch.ones(indices.shape[1] - y[i].shape[0]).long()]).to(indices.device)  # Pad y with ones
+
+    # Embedding lookup (assuming self.vocab_embed is a valid embedding layer)
+    x = self.vocab_embed(x)
+
+    # Apply the sigmoid function on the sigma to get the processing tensor `c`
     c = F.silu(self.sigma_map(sigma))
+
+    # Apply rotary embeddings
     rotary_cos_sin = self.rotary_emb(x)
 
-    with torch.cuda.amp.autocast(dtype=torch.bfloat16):
-      for i in range(len(self.blocks)):
-        x = self.blocks[i](x, rotary_cos_sin, c, seqlens=None)
-      x = self.output_layer(x, c)
+    # Process the sequence through the blocks
+    with torch.cuda.amp.autocast(dtype=torch.bfloat16):  # Automatic Mixed Precision
+        for i in range(len(self.blocks)):
+            x = self.blocks[i](x, rotary_cos_sin, c, seqlens=None)
+    
+    # Final output layer transformation
+    x = self.output_layer(x, c)
 
-    # TODO: yunchenc return performance without condition
-    return x[:, :l, :]
+    # Return final output
+    return x[:, y == 1] # Return only the parts where y == 1

@@ -1,0 +1,12 @@
+name: pop2piano-cond
+train_cond: /tmp2/b11902010/dmir_lab/diffusion_compose_and_embellish/dataset/pop2piano_data/cond_train.txt
+train_tgt: /tmp2/b11902010/dmir_lab/diffusion_compose_and_embellish/dataset/pop2piano_data/target_train.txt
+valid_cond: /tmp2/b11902010/dmir_lab/diffusion_compose_and_embellish/dataset/pop2piano_data/cond_valid.txt
+valid_tgt: /tmp2/b11902010/dmir_lab/diffusion_compose_and_embellish/dataset/pop2piano_data/target_valid.txt
+cond_length: 1024
+tgt_length: 2048
+tokenizer_name_or_path: /tmp2/b11902010/dmir_lab/diffusion_compose_and_embellish/tokenizers/cne_tokenizer
+cache_dir: /tmp2/b11902010/.cache/no
+wrap: True
+streaming: True
+testing: False

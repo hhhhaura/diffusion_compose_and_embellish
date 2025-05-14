@@ -17,8 +17,8 @@ from torch import Tensor
 
 import dataloader
 import models
-import mdlm.src.noise_schedule as noise_schedule
-import mdlm.src.utils as utils
+import src.noise_schedule as noise_schedule
+import src.utils as utils
 
 LOG2 = math.log(2)
 

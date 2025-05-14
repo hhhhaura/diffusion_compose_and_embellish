@@ -1,4 +1,5 @@
 import os
+import sys
 
 from tqdm import tqdm
 import fsspec
@@ -8,8 +9,9 @@ import omegaconf
 import rich.syntax
 import rich.tree
 import torch
-import text2midi
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import text2midi
 import dataloader
 import diffusion
 import utils

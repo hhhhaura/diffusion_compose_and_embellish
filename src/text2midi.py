@@ -3,7 +3,7 @@ from tqdm import tqdm
 from miditok import REMI, TokenizerConfig
 from transformers import AutoTokenizer
 
-ignored_tokens = {"[BOS]", "[UNK]", "[PAD]", "[EOS]", "[MASK]"}  # Define tokens to skip
+ignored_tokens = {"[BOS]", "[UNK]", "[PAD]", "[EOS]", "[MASK]", "[NONE]", "Track_Skyline", "Track_Midi"}  # Define tokens to skip
 
 TOKENIZER_PARAMS = {
     "pitch_range": (21, 109),

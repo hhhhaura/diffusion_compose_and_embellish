@@ -1,0 +1,6 @@
+- model=compose_and_embellish
+- data=pop2piano_train
+- wandb.name=compose_and_embellish
+- parameterization=subs
+- eval.compute_generative_perplexity=True
+- sampling.steps=1500

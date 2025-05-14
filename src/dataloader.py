@@ -92,6 +92,7 @@ def load_condition_target_dataset(
       return {
           "cond_ids": cond_tokens['cond_ids'],
           "input_ids": target_tokens['input_ids'],
+          "attention_mask": target_encodings['attention_mask'],
       }
 
   tokenized_dataset = dataset.map(

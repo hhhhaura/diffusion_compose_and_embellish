@@ -36,7 +36,7 @@ from mamba_ssm.ops.triton.selective_state_update import (
     selective_state_update,
 )
 
-from dmir_lab.mdlm.models.compose_and_embellish_dit import (
+from src.models.compose_and_embellish_dit import (
     TimestepEmbedder,
     bias_dropout_add_scale_fused_inference,
     bias_dropout_add_scale_fused_train,
